@@ -20,6 +20,8 @@ class server:
   buf_size = 1024
   callback_rx = None
   callback_error = None
+  onconnect = None
+  onclose = None
   udp = None
   _thread_rx = None
   client = None
@@ -71,6 +73,8 @@ class server:
     if self.sock:
       self.sock.close()
     self.is_connected = False
+    if self.onclose:
+      self.onclose()
 
   def _rxthread(self):
     while self.doit and not self.is_connected:
@@ -79,10 +83,12 @@ class server:
         self.sock.listen(1)
         self.connection, self.address = self.sock.accept()
         self.is_connected = True
+        self.onconnect and self.onconnect()
       except Exception as e:
         if self.verbosity:
           print("bind error! "+str(e))
-          time.sleep(.3)
+        self.callback_error and self.callback_error()
+        time.sleep(.3)
 
     while self.doit:
       # breakpoint()
@@ -94,10 +100,8 @@ class server:
           self.doit = 0
       except Exception as e:
         self.sock = None
-        if self.verbosity:
-          print("server create error: ", e)
-        if self.callback_error:
-          self.callback_error("rx error: "+str(e))
+        if self.verbosity: print("server create error: ", e)
+        self.callback_error and self.callback_error("rx error: "+str(e))
         self.doit = 0
     self.close()
 
